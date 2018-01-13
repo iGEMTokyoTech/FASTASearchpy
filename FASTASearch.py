@@ -31,7 +31,7 @@ def argparser():
 def makesoup(url):
     with urllib.request.urlopen(url) as response:
         html = response.read()
-        time.sleep(15)
+        time.sleep(5)
         try:
             soup = BeautifulSoup(html, "lxml")
         except:
@@ -82,7 +82,7 @@ def ncbi_checker(ncbisoup, genename):
     if Egenename.lower() == genename.lower():
         print('The input genename is same with Official Symbol')
 
-    if not Egenename == genename:
+    elif not Egenename == genename:
         for line in ncbisoup.find('dl', id="summaryDl").findAll('dd'):
             if '; ' in str(line):
                 if genename.lower() or genename.upper() in str(line).replace('<', '>').replace('>', ' ').replace(';', '').split(' '):
