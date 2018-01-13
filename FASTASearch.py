@@ -31,7 +31,7 @@ def argparser():
 def makesoup(url):
     with urllib.request.urlopen(url) as response:
         html = response.read()
-        time.sleep(5)
+        time.sleep(15)
         try:
             soup = BeautifulSoup(html, "lxml")
         except:
@@ -62,7 +62,7 @@ def url_ncbi(genename, kind):
     else :
         pass
 
-    if 'Showing Current items.' in str(soup.findAll('span', class_='icon')):
+    if 'Showing Current items.' in str(soup.findAll('span', class_='icon')) and not '<h2>Search results</h2>' in str(soup.findAll('h2')):
         ncbiurl = url
     else:
         hrefname = re.compile('/gene/\w')
@@ -79,14 +79,14 @@ def ncbi_soup(ncbiurl):
 
 def ncbi_checker(ncbisoup, genename):    
     Egenename = str(ncbisoup.find('dl', id="summaryDl").find('dd', class_='noline')).replace('<', '>').split('>')[2]    
-    if Egenename == genename:
-        print('The input genename is same with Official Symbol name')
+    if Egenename.lower() == genename.lower():
+        print('The input genename is same with Official Symbol')
 
     if not Egenename == genename:
         for line in ncbisoup.find('dl', id="summaryDl").findAll('dd'):
             if '; ' in str(line):
-                if genename in str(line).replace('<', '>').replace('>', ' ').replace(';', '').split(' '):
-                    print('the Official Symbol of the input genename is ' + Egenename +', founded' )
+                if genename.lower() or genename.upper() in str(line).replace('<', '>').replace('>', ' ').replace(';', '').split(' '):
+                    print('The Official Symbol of the input Genename is ' + Egenename +', founded' )
     
 def fasta_from_ncbi(ncbisoup):
     fastaurl = 'https://www.ncbi.nlm.nih.gov' + str(ncbisoup.findAll('a', title="Nucleotide FASTA report")[0]).split('"')[1]
