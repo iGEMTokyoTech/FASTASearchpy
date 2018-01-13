@@ -74,6 +74,7 @@ def url_ncbi(genename, kind):
 
 def ncbi_soup(ncbiurl):
     ncbisoup = makesoup(ncbiurl)
+    time.sleep(5)
     return(ncbisoup)
 
 def ncbi_checker(ncbisoup, genename):    
@@ -113,3 +114,5 @@ if __name__ == '__main__' :
     fastaurl = fasta_from_ncbi(ncbisoup)
 
     seq_fasta(fastaurl, genename , kind)
+
+    print("Succeeded")
