@@ -1,2 +1,2 @@
-# GeneINFOpy
-This program output gene information automatically
+# FASTASearchpy 
+This program output FASTA information automatically
