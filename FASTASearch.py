@@ -25,7 +25,7 @@ def argparser():
     parser.add_argument('--kind', '-k', required=True)
     args = parser.parse_args()
     gene = args.gene
-    kind = args.kind
+    kind = args.kind.replace(' ', '+')
     return (gene, kind)
 
 def makesoup(url):
