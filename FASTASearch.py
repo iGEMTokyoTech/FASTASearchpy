@@ -3,6 +3,9 @@
 ###
 #Author Ryoga Misu
 #iGEM group of Tokyo Institute of Technology
+#
+#Usage : python FASTAsearch.py -g/--gene genename -k/--kind kind
+# ex) python FASTAsearch.py -g 'CD27' -k 'human'
 ###
 
 from bs4 import BeautifulSoup
