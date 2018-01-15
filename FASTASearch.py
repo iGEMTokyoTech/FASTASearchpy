@@ -16,7 +16,6 @@ import json
 import os
 import requests
 from selenium import webdriver
-import codecs
 import argparse
 import time
 
@@ -34,7 +33,7 @@ def argparser():
 def makesoup(url):
     with urllib.request.urlopen(url) as response:
         html = response.read()
-        time.sleep(5)
+        time.sleep(1)
         try:
             soup = BeautifulSoup(html, "lxml")
         except:
@@ -44,7 +43,7 @@ def makesoup(url):
 def makesoup_java(url):
     driver = webdriver.PhantomJS(service_log_path=os.path.devnull)
     driver.get(url)
-    time.sleep(5)
+    time.sleep(1)
     html = driver.page_source.encode('utf-8')  # more sophisticated methods may be available
     try:
         soup_java = BeautifulSoup(html, "lxml")
@@ -77,7 +76,6 @@ def url_ncbi(genename, kind):
 
 def ncbi_soup(ncbiurl):
     ncbisoup = makesoup(ncbiurl)
-    time.sleep(5)
     return(ncbisoup)
 
 def ncbi_checker(ncbisoup, genename):    
@@ -96,9 +94,13 @@ def fasta_from_ncbi(ncbisoup):
     return(fastaurl)
 
 def seq_fasta(fastaurl, genename, kind):
+    try:
+        os.mkdir('./' + genename + '_in_' + kind)
+    except:
+        pass
     fastasoup = makesoup_java(fastaurl)
     comment = '> '+ str(fastasoup.findAll('pre')).split(';')[1].split('\n')[0]
-    f = open('output.txt',  'w')
+    f = open('./' + genename + '_in_' + kind  + '/' + genename + '_in_' + kind + '.fa',  'w')
     f.write(comment + '\n')
     for line in fastasoup.findAll('span', class_="ff_line" ):
         f.write(str(line).replace('<', '>').split('>')[2])
