@@ -12,12 +12,12 @@ from bs4 import BeautifulSoup
 import re
 import urllib.request
 import sys
-import json
 import os
 import requests
 from selenium import webdriver
 import argparse
 import time
+import shutil
 
 def argparser():
     parser = argparse.ArgumentParser(add_help=True,
@@ -43,7 +43,7 @@ def makesoup(url):
 def makesoup_java(url):
     driver = webdriver.PhantomJS(service_log_path=os.path.devnull)
     driver.get(url)
-    time.sleep(3)
+    time.sleep(5)
     html = driver.page_source.encode('utf-8')  # more sophisticated methods may be available
     try:
         soup_java = BeautifulSoup(html, "lxml")
@@ -113,27 +113,50 @@ def Genbank_soup(ncbisoup):
 
 def Genbank_mRNA_CDS(Genbanksoup, genename, kind):
     mRNA = re.compile('\wmRNA_0')
-    mRNAregion = str(str(Genbanksoup.findAll('span', id=mRNA, class_="feature")[0]).split('join')[1].split('/gene')[0]).replace('\n', '').replace(' ', '').replace('(', '').replace(')', '').split(',')
     CDS = re.compile('\wCDS_0')
-    CDSregion = str(str(Genbanksoup.findAll('span', id=CDS, class_="feature")[0]).split('join')[1].split('/gene')[0]).replace('\n', '').replace(' ', '').replace('(', '').replace(')', '').split(',')
     fa = open('./'+ genename + '_in_' + kind  + '/' + genename + '_in_' + kind + '.fa', 'r')
     seq = fa.read().split('\n')[1]
     fa.close()
-    mRNAout = open('./'+ genename + '_in_' + kind + '/' + genename + '_in_' + kind + '_mRNA.fa', 'w')
-    for num in mRNAregion:
-        first, second = num.split('..')
-        start = int(first) - 1
-        end = int(second)
-        mRNAout.write(str(seq)[start:end].strip())
-    mRNAout.close()
+    try:
+        mRNAregion = str(Genbanksoup.findAll('span', id=mRNA, class_="feature")).split('/gene')[0].split('mRNA')[-1].replace('\n', '').replace(' ', '')
+        if 'join' in mRNAregion:
+            mRNAlist = str(str(Genbanksoup.findAll('span', id=mRNA, class_="feature")[0]).split('join')[1].split('/gene')[0]).replace('\n', '').replace(' ', '').replace('(', '').replace(')', '').split(',')
+        elif '..>' in mRNAregion:
+            shutil.copy('./'+ genename + '_in_' + kind  + '/' + genename + '_in_' + kind + '.fa', './'+ genename + '_in_' + kind + '/' + genename + '_in_' + kind + '_mRNA.fa')
+        else:
+            mRNAlist = []
+            mRNAlist.append(mRNAregion)
 
-    CDSout = open('./'+ genename + '_in_' + kind + '/' + genename + '_in_' + kind + '_CDS.fa', 'w')
-    for num in CDSregion:
-        first, second = num.split('..')
-        start = int(first) - 1
-        end = int(second)
-        CDSout.write(str(seq)[start:end].strip())
-    CDSout.close()
+        mRNAout = open('./'+ genename + '_in_' + kind + '/' + genename + '_in_' + kind + '_mRNA.fa', 'w')
+        for num in mRNAlist:
+            first, second = num.split('..') 
+            start = int(first) - 1
+            end = int(second) 
+            mRNAout.write(str(seq)[start:end].strip())
+        mRNAout.close()
+    except:
+        pass
+
+    try:
+        CDSregion = str(Genbanksoup.findAll('span', id=CDS, class_="feature")).split('/gene')[0].split('CDS')[-1].replace('\n', '').replace(' ', '')
+        if 'join' in CDSregion:
+            CDSlist = str(str(Genbanksoup.findAll('span', id=CDS, class_="feature")[0]).split('join')[1].split('/gene')[0]).replace('\n', '').replace(' ', '').replace('(', '').replace(')', '').split(',')
+        elif '..>' in CDSregion:
+            shutil.copy('./'+ genename + '_in_' + kind  + '/' + genename + '_in_' + kind + '.fa', './'+ genename + '_in_' + kind + '/' + genename + '_in_' + kind + '_CDS.fa')
+        else:
+            CDSlist = []
+            CDSlist.append(CDSregion)
+
+        CDSout = open('./'+ genename + '_in_' + kind + '/' + genename + '_in_' + kind + '_CDS.fa', 'w')
+        for num in CDSlist:
+            first, second = num.split('..')
+            start = int(first) - 1
+            end = int(second) 
+            CDSout.write(str(seq)[start:end].strip())
+        CDSout.close()
+
+    except:
+        pass
 
 
 if __name__ == '__main__' :
