@@ -127,7 +127,7 @@ def Genbank_mRNA_CDS(Genbanksoup, genename, kind):
         mRNAout.write(str(seq)[start:end].strip())
     mRNAout.close()
 
-    CDSout = open('./'+ genename + '_in_human/' + genename + '_in_' + kind + '_CDS.fa', 'w')
+    CDSout = open('./'+ genename + '_in_' + kind + '/' + genename + '_in_' + kind + '_CDS.fa', 'w')
     for num in CDSregion:
         first, second = num.split('..')
         start = int(first) - 1
