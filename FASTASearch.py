@@ -43,7 +43,7 @@ def makesoup(url):
 def makesoup_java(url):
     driver = webdriver.PhantomJS(service_log_path=os.path.devnull)
     driver.get(url)
-    time.sleep(1)
+    time.sleep(3)
     html = driver.page_source.encode('utf-8')  # more sophisticated methods may be available
     try:
         soup_java = BeautifulSoup(html, "lxml")
@@ -106,6 +106,36 @@ def seq_fasta(fastaurl, genename, kind):
         f.write(str(line).replace('<', '>').split('>')[2])
     f.close()
 
+def Genbank_soup(ncbisoup):
+    genbankurl = 'https://www.ncbi.nlm.nih.gov' + str(ncbisoup.findAll('a', title="Nucleotide GenBank report" )).split('"')[1]
+    genbanksoup = makesoup_java(genbankurl)
+    return(genbanksoup)
+
+def Genbank_mRNA_CDS(Genbanksoup, genename, kind):
+    mRNA = re.compile('\wmRNA_0')
+    mRNAregion = str(str(Genbanksoup.findAll('span', id=mRNA, class_="feature")[0]).split('join')[1].split('/gene')[0]).replace('\n', '').replace(' ', '').replace('(', '').replace(')', '').split(',')
+    CDS = re.compile('\wCDS_0')
+    CDSregion = str(str(Genbanksoup.findAll('span', id=CDS, class_="feature")[0]).split('join')[1].split('/gene')[0]).replace('\n', '').replace(' ', '').replace('(', '').replace(')', '').split(',')
+    fa = open('./'+ genename + '_in_' + kind  + '/' + genename + '_in_' + kind + '.fa', 'r')
+    seq = fa.read().split('\n')[1]
+    fa.close()
+    mRNAout = open('./'+ genename + '_in_' + kind + '/' + genename + '_in_' + kind + '_mRNA.fa', 'w')
+    for num in mRNAregion:
+        first, second = num.split('..')
+        start = int(first) - 1
+        end = int(second)
+        mRNAout.write(str(seq)[start:end].strip())
+    mRNAout.close()
+
+    CDSout = open('./'+ genename + '_in_human/' + genename + '_in_' + kind + '_CDS.fa', 'w')
+    for num in CDSregion:
+        first, second = num.split('..')
+        start = int(first) - 1
+        end = int(second)
+        CDSout.write(str(seq)[start:end].strip())
+    CDSout.close()
+
+
 if __name__ == '__main__' :
 
     genename, kind = argparser()
@@ -119,5 +149,9 @@ if __name__ == '__main__' :
     fastaurl = fasta_from_ncbi(ncbisoup)
 
     seq_fasta(fastaurl, genename , kind)
+
+    Genbanksoup = Genbank_soup(ncbisoup)
+
+    Genbank_mRNA_CDS(Genbanksoup, genename, kind)
 
     print("Succeeded")
