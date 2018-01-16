@@ -43,7 +43,7 @@ def makesoup(url):
 def makesoup_java(url):
     driver = webdriver.PhantomJS(service_log_path=os.path.devnull)
     driver.get(url)
-    time.sleep(5)
+    time.sleep(3)
     html = driver.page_source.encode('utf-8')  # more sophisticated methods may be available
     try:
         soup_java = BeautifulSoup(html, "lxml")
