@@ -1,12 +1,15 @@
 # -*- coding: utf-8 -*
 
-###
-#Author Ryoga Misu
-#iGEM group of Tokyo Institute of Technology
-#
-#Usage : python FASTAsearch.py -g/--gene genename -k/--kind kind
-# ex) python FASTAsearch.py -g 'CD27' -k 'human'
-###
+"""
+
+Author : Ryoga Misu
+iGEM group of Tokyo Institute of Technology
+
+verion = 0.1
+
+Usage : python FASTAsearch.py -g/--gene genename -k/--kind kind
+ex) python FASTAsearch.py -g 'CD27' -k 'human'
+"""
 
 from bs4 import BeautifulSoup
 import re
@@ -43,7 +46,7 @@ def makesoup(url):
 def makesoup_java(url):
     driver = webdriver.PhantomJS(service_log_path=os.path.devnull)
     driver.get(url)
-    time.sleep(3)
+    time.sleep(5)
     html = driver.page_source.encode('utf-8')  # more sophisticated methods may be available
     try:
         soup_java = BeautifulSoup(html, "lxml")
