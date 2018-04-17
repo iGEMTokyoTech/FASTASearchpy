@@ -15,7 +15,7 @@ python FASTAsearch.py -g/--gene genename -k/--kind kind
 
 (examples)
 ```
-python FASTAsearch.py -g 'CD27' -k 'human'
+python FASTAsearch.py -g CD27 -k human
 ```
 
 ```
