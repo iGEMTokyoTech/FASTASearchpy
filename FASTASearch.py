@@ -1,183 +1,178 @@
-# -*- coding: utf-8 -*
-
-"""
-
-Author : Ryoga Misu
-iGEM group of Tokyo Institute of Technology
-
-verion = 0.1
-
-Usage : python FASTAsearch.py -g/--gene genename -k/--kind kind
-ex) python FASTAsearch.py -g 'CD27' -k 'human'
-"""
-
-from bs4 import BeautifulSoup
-import re
-import urllib.request
+# coding=utf-8
 import sys
 import os
-import requests
-from selenium import webdriver
 import argparse
-import time
-import shutil
+from Bio import Entrez
+
+Entrez.email = "igem2018tokyotech@gmail.com"
 
 def argparser():
     parser = argparse.ArgumentParser(add_help=True,
                                     prog='GeneINFO.py', # プログラム名
                                     usage='python GeneINFO.py -g/--gene genename -k/--kind kind')
-    parser.add_argument("--gene",  "-g", required=True)
-    parser.add_argument('--kind', '-k', required=True)
+    parser.add_argument("--gene",  "-g", nargs='+', required=True)
+    parser.add_argument('--kind', '-k', nargs='+', required=True)
     args = parser.parse_args()
-    gene = args.gene
-    kind = args.kind.replace(' ', '+')
+    gene = '+'.join(args.gene)
+    kind = '+'.join(args.kind)
     return (gene, kind)
 
-def makesoup(url):
-    with urllib.request.urlopen(url) as response:
-        html = response.read()
-        time.sleep(1)
-        try:
-            soup = BeautifulSoup(html, "lxml")
-        except:
-            soup = BeautifulSoup(html, "html5lib")
-    return (soup)
+def query_yes_no(question, default="yes"):
+    """Ask a yes/no question via raw_input() and return their answer.
 
-def makesoup_java(url):
-    driver = webdriver.PhantomJS(service_log_path=os.path.devnull)
-    driver.get(url)
-    time.sleep(5)
-    html = driver.page_source.encode('utf-8')  # more sophisticated methods may be available
-    try:
-        soup_java = BeautifulSoup(html, "lxml")
-    except:
-        soup_java = BeautifulSoup(html, "html5lib")
-    return(soup_java)
-    
-def url_ncbi(genename, kind):
-    url = 'https://www.ncbi.nlm.nih.gov/gene/?term=' + genename + '+' + kind
-    soup = makesoup(url)
-    if  'The following term was not found in Gene' in str(soup.findAll('span', class_='icon')):
-        print('[ERROR] The following term was not found in Gene')
-        sys.exit()
+    "question" is a string that is presented to the user.
+    "default" is the presumed answer if the user just hits <Enter>.
+        It must be "yes" (the default), "no" or None (meaning
+        an answer is required of the user).
 
-    elif 'No items found.' in str(soup.findAll('span', class_='icon')) :
-        print('[ERROR] No items found.')
-        sys.exit()
-    else :
-        pass
-
-    if 'Showing Current items.' in str(soup.findAll('span', class_='icon')) and not '<h2>Search results</h2>' in str(soup.findAll('h2')):
-        ncbiurl = url
+    The "answer" return value is True for "yes" or False for "no".
+    """
+    valid = {"yes" : True, "y" : True, "ye": True, "no" : False, "n": False}
+    if default is None:
+        prompt = " [y/n] "
+    elif default == "yes":
+        prompt = " [Y/n] "
+    elif default == "no":
+        prompt = " [y/N] "
     else:
-        hrefname = re.compile('/gene/\w')
-        atag = soup.findAll('a', href=hrefname)[2]
-        href = str(atag).split(" ")[1]
-        ncbiurl = 'https://www.ncbi.nlm.nih.gov' + href.split('"')[1]
-    return(ncbiurl)
+        raise ValueError("invalid default answer:" % default)
 
+    while True:
+        sys.stdout.write(question + prompt)
+        choice = input().lower()
+        if default is not None and choice == '': 
+            return valid[default]
+            break
+        elif choice in valid:
+            return valid[choice]
+            break
+        else:
+            sys.stdout.write("Please respond with 'yes' or 'no' "
+                             "(or 'y' or 'n').\n")
 
-def ncbi_soup(ncbiurl):
-    ncbisoup = makesoup(ncbiurl)
-    return(ncbisoup)
-
-def ncbi_checker(ncbisoup, genename):    
-    Egenename = str(ncbisoup.find('dl', id="summaryDl").find('dd', class_='noline')).replace('<', '>').split('>')[2]    
-    if Egenename.lower() == genename.lower():
-        print('The input genename is same with Official Symbol')
-
-    elif not Egenename == genename:
-        for line in ncbisoup.find('dl', id="summaryDl").findAll('dd'):
-            if '; ' in str(line):
-                if genename.lower() or genename.upper() in str(line).replace('<', '>').replace('>', ' ').replace(';', '').split(' '):
-                    print('The Official Symbol of the input Genename is ' + Egenename +', founded' )
+def ncbi_for_genbankid(gene, kind):
+    print('Fetching Gene Information...\n')
+    handle = Entrez.esearch(db="gene", term= gene + '[gene] AND ' + kind  + '[Orgn]')
+    record = Entrez.read(handle)
+    handle.close()
+    geneidlist = record['IdList']
+    if len(geneidlist) == 0:
+        sys.stdout.write('Bad request. Make sure that all words are spelled correctly or Try different keywords.')
+        sys.exit()
+        
+    else:
+        geneidnum = len(geneidlist)
+        count = 1
+        for geneid in geneidlist :
+            handle = Entrez.efetch(db="gene", id=geneid, rettype="gb", retmode="text")
+            geneinfo = handle.read()
+            answer = query_yes_no("[Information]" + geneinfo + '\nAre you looking for this Gene? Please answer!')
+            if answer:
+                sys.stdout.write('\nAll right!\n')
+                break
+            elif answer == False:
+                sys.stdout.write('\nOK, searching another choice...')
+                count += 1
+        if int(geneidnum) < int(count):
+            sys.stdout.write("\n\nSorry, can't find what you are looking for.\nMake sure that all words are spelled correctly or Try different keywords.")
+            sys.exit()
     
-def fasta_from_ncbi(ncbisoup):
-    fastaurl = 'https://www.ncbi.nlm.nih.gov' + str(ncbisoup.findAll('a', title="Nucleotide FASTA report")[0]).split('"')[1]
-    return(fastaurl)
+    print('Fetching Genbank ID and Information...\n')
+    ncbidict={}
+    count = 0
+    for info in str(geneinfo).split('\n'):
+        count += 1
+        if count == 2:
+            genename = info.replace('1. ', '')  
+        elif 'Official Symbol' in info:
+            OfficialSymbol, Name = info.split('and')
+            key,value = OfficialSymbol.split(':')
+            ncbidict[key] = value
+            key, value = Name.split(':')
+            ncbidict[key] = value
+        else:
+            try:
+                key,value = info.split(':')
+                ncbidict[key] = value
+            except ValueError:
+                pass
 
-def seq_fasta(fastaurl, genename, kind):
-    try:
-        os.mkdir('./' + genename + '_in_' + kind)
-    except:
-        pass
-    fastasoup = makesoup_java(fastaurl)
-    comment = '> '+ str(fastasoup.findAll('pre')).split(';')[1].split('\n')[0]
+    for anno in ncbidict['Annotation'].split(' '):
+        if 'NC_' in anno:
+            genbankid = anno
+        elif '..' in anno:
+            region = anno.replace(',', '').replace('(', '').replace(')', '')
+            start, end = region.split('..')
+    handle.close()
+    return(genename, genbankid, start, end)  
+
+def DefineKind(genename, genbankid, start, end):
+    handle = Entrez.efetch(db="nucleotide", id=genbankid, rettype="gb", retmode="text", seq_start = start, seq_stop = end)
+    result = handle.read()
+    for i in result.split('\n'):
+        if '/organism' in i:
+            kind = i.replace('/organism=', '').title().replace(' ', '').replace('"', '')
+    return(kind)
+
+def Gene_mRNA_CDS(genename, kind, genbankid, start, end):
+    os.makedirs('./' + genename + '_in_' + kind, exist_ok = True)
+    print('Fetching the DNA sequence of ' + genename +  '...')
+    handle = Entrez.efetch(db="nucleotide", id=genbankid, rettype="gb", retmode="text", seq_start = start, seq_stop = end)
+    gbresult = handle.read()
+    sequence =  ''.join([i for i in gbresult.split('ORIGIN')[1] if not i.isdigit()]).replace('\n', '').replace(' ', '').replace('/', '')
+    handle.close()
     f = open('./' + genename + '_in_' + kind  + '/' + genename + '_in_' + kind + '.fa',  'w')
-    f.write(comment + '\n')
-    for line in fastasoup.findAll('span', class_="ff_line" ):
-        f.write(str(line).replace('<', '>').split('>')[2])
+    f.write(sequence)
     f.close()
-
-def Genbank_soup(ncbisoup):
-    genbankurl = 'https://www.ncbi.nlm.nih.gov' + str(ncbisoup.findAll('a', title="Nucleotide GenBank report" )).split('"')[1]
-    genbanksoup = makesoup_java(genbankurl)
-    return(genbanksoup)
-
-def Genbank_mRNA_CDS(Genbanksoup, genename, kind):
-    mRNA = re.compile('\wmRNA_0')
-    CDS = re.compile('\wCDS_0')
-    fa = open('./'+ genename + '_in_' + kind  + '/' + genename + '_in_' + kind + '.fa', 'r')
-    seq = fa.read().split('\n')[1]
-    fa.close()
+    print('Fetching the CDS nucleotide of ' + genename +  '...')
+    handle = Entrez.efetch(db="nuccore", id=genbankid, rettype="fasta_cds_na", retmode="text", seq_start = start, seq_stop = end)
+    CDS = handle.read()
+    count = 0
     try:
-        mRNAregion = str(Genbanksoup.findAll('span', id=mRNA, class_="feature")).split('/gene')[0].split('mRNA')[-1].replace('\n', '').replace(' ', '')
-        if 'join' in mRNAregion:
-            mRNAlist = str(str(Genbanksoup.findAll('span', id=mRNA, class_="feature")[0]).split('join')[1].split('/gene')[0]).replace('\n', '').replace(' ', '').replace('(', '').replace(')', '').split(',')
-        elif '..>' in mRNAregion:
-            shutil.copy('./'+ genename + '_in_' + kind  + '/' + genename + '_in_' + kind + '.fa', './'+ genename + '_in_' + kind + '/' + genename + '_in_' + kind + '_mRNA.fa')
-        else:
-            mRNAlist = []
-            mRNAlist.append(mRNAregion)
+        for section in CDS.split('>'):
+            list = section.split('\n')
+            comment = list[0]
+            if len(comment) == 0:
+                continue
+            seq = ''.join(list[1:])
+            count += 1
+            CDSout = open('./'+ genename + '_in_' + kind + '/' + genename + '_in_' + kind + '_CDS_nucleotide_' + str(count) + '.fa', 'w') 
+            CDSout.write('>' + comment + '\n')
+            CDSout.write(seq)
 
-        mRNAout = open('./'+ genename + '_in_' + kind + '/' + genename + '_in_' + kind + '_mRNA.fa', 'w')
-        for num in mRNAlist:
-            first, second = num.split('..') 
-            start = int(first) - 1
-            end = int(second) 
-            mRNAout.write(str(seq)[start:end].strip())
-        mRNAout.close()
-    except:
-        pass
+    except IndexError:
+        print('No CDS_nucleotide founded')
 
+    print('Fetching the CDS protein of ' + genename +  '...')
+    handle = Entrez.efetch(db="nuccore", id=genbankid, rettype="fasta_cds_aa", retmode="text", seq_start = start, seq_stop = end)
+    CDS_protein = handle.read()
+    count = 0
     try:
-        CDSregion = str(Genbanksoup.findAll('span', id=CDS, class_="feature")).split('/gene')[0].split('CDS')[-1].replace('\n', '').replace(' ', '')
-        if 'join' in CDSregion:
-            CDSlist = str(str(Genbanksoup.findAll('span', id=CDS, class_="feature")[0]).split('join')[1].split('/gene')[0]).replace('\n', '').replace(' ', '').replace('(', '').replace(')', '').split(',')
-        elif '..>' in CDSregion:
-            shutil.copy('./'+ genename + '_in_' + kind  + '/' + genename + '_in_' + kind + '.fa', './'+ genename + '_in_' + kind + '/' + genename + '_in_' + kind + '_CDS.fa')
-        else:
-            CDSlist = []
-            CDSlist.append(CDSregion)
-
-        CDSout = open('./'+ genename + '_in_' + kind + '/' + genename + '_in_' + kind + '_CDS.fa', 'w')
-        for num in CDSlist:
-            first, second = num.split('..')
-            start = int(first) - 1
-            end = int(second) 
-            CDSout.write(str(seq)[start:end].strip())
-        CDSout.close()
-
-    except:
-        pass
+        for section in CDS_protein.split('>'):
+            list = section.split('\n')
+            comment = list[0]
+            if len(comment) == 0:
+                continue
+            seq = ''.join(list[1:])
+            count += 1
+            CDS_protein_out = open('./'+ genename + '_in_' + kind + '/' + genename + '_in_' + kind + '_CDS_protein_' + str(count) + '.fa', 'w')
+            CDS_protein_out.write('>' + comment + '\n')
+            CDS_protein_out.write(seq + '\n')
+    
+    except IndexError:
+        print('No CDS_protein founded')
 
 
-if __name__ == '__main__' :
+def main():
+    inputgene, inputkind = argparser()
 
-    genename, kind = argparser()
+    genename, genbankid, start, end = ncbi_for_genbankid(inputgene, inputkind)
+    
+    kind = DefineKind(genename, genbankid, start, end)
 
-    ncbiurl = url_ncbi(genename, kind)
+    Gene_mRNA_CDS(genename, kind, genbankid, start, end)
+    
+    print("\nSucceeded")
 
-    ncbisoup = ncbi_soup(ncbiurl)
-
-    ncbi_checker(ncbisoup, genename)
-
-    fastaurl = fasta_from_ncbi(ncbisoup)
-
-    seq_fasta(fastaurl, genename , kind)
-
-    Genbanksoup = Genbank_soup(ncbisoup)
-
-    Genbank_mRNA_CDS(Genbanksoup, genename, kind)
-
-    print("Succeeded")
+if __name__ == '__main__':
+    main()
